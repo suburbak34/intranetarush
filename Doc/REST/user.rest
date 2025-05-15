@@ -1,0 +1,35 @@
+GET http://webarush.arush.local/api/user 
+
+
+### GUARDAR
+
+POST http://webarush.arush.local/api/user
+Accept: application/json
+Content-Type: application/json  
+
+{
+  "name": "Bertha Guillen",
+  "email": "bertha-guillen@gmail.com",
+  "password": "HasApiTokens2025@"
+}
+
+### MOSTRAR
+
+GET http://webarush.arush.local/api/user/8
+Accept: application/json 
+
+### MODIFICAR
+
+PUT http://webarush.arush.local/api/user/4
+Accept: application/json
+Content-Type: application/json
+
+{
+  "name": "Mart-9000",
+  "email": "9000@gmail.com.mx",
+  "password": "EreeE2705mr2@@ee34"
+}
+
+### ELIMINAR
+
+DELETE http://webarush.arush.local/api/user/2
