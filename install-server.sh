@@ -184,7 +184,7 @@ PrintMotd no
 PrintLastLog yes
 EOF
 
-systemctl restart sshd
+systemctl restart ssh
 print_success "SSH configurado"
 
 ###############################################################################
