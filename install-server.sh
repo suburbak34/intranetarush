@@ -551,8 +551,8 @@ EOF
 
 print_step "10. Configurando Virtual Hosts..."
 
-# Crear directorios
-mkdir -p ${APP_ROOT} ${FRONT_ROOT} ${BLOG_ROOT}
+# Crear solo directorio de Laravel (Vue.js se creará después)
+mkdir -p ${APP_ROOT}
 chown -R ${WEB_USER}:${WEB_USER} /var/www
 chmod -R 755 /var/www
 
@@ -800,7 +800,9 @@ print_step "14. Desplegando proyectos Vue.js..."
 
 # Frontend Vue.js
 cd /var/www
-if [ ! -d "${FRONT_ROOT}/package.json" ]; then
+if [ ! -f "${FRONT_ROOT}/package.json" ]; then
+    # Eliminar directorio vacío si existe
+    rm -rf ${FRONT_ROOT}
     sudo -u ${WEB_USER} vue create front -d
     
     cat > ${FRONT_ROOT}/vue.config.js <<'EOF'
@@ -837,7 +839,9 @@ fi
 
 # Blog Vue.js
 cd /var/www
-if [ ! -d "${BLOG_ROOT}/package.json" ]; then
+if [ ! -f "${BLOG_ROOT}/package.json" ]; then
+    # Eliminar directorio vacío si existe
+    rm -rf ${BLOG_ROOT}
     sudo -u ${WEB_USER} npm create vite@latest blog -- --template vue
     
     cat > ${BLOG_ROOT}/vite.config.js <<'EOF'
