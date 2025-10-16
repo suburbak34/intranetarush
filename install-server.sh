@@ -461,7 +461,7 @@ openssl req -config ${CA_DIR}/openssl-ca.cnf \
 
 print_success "CA generada"
 
-# Configuración SAN
+# Configuración SAN compatible con Chrome
 cat > ${CA_DIR}/openssl-san.cnf <<EOF
 [ req ]
 default_bits       = 2048
@@ -478,7 +478,8 @@ OU = Development
 CN = ${DOMAIN}
 
 [ v3_req ]
-keyUsage = keyEncipherment, dataEncipherment
+basicConstraints = CA:FALSE
+keyUsage = critical, digitalSignature, keyEncipherment, keyAgreement
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
@@ -510,7 +511,8 @@ openssl x509 -req \
     -days 3650 \
     -sha256 \
     -extensions v3_req \
-    -extfile ${CA_DIR}/openssl-san.cnf
+    -extfile ${CA_DIR}/openssl-san.cnf \
+    -copy_extensions copyall
 
 # Crear fullchain
 cat ${CRT_FILE} ${CA_DIR}/certs/ca.crt > ${FULLCHAIN}
