@@ -376,13 +376,29 @@ sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https:
 apt update
 apt install -y pgadmin4-web
 
-# Configurar pgAdmin
-/usr/pgadmin4/bin/setup-web.sh <<EOF
-admin@arush.local
-${DB_PASS}
-${DB_PASS}
-y
-EOF
+# Configurar pgAdmin usando expect para automatizar
+apt install -y expect
+
+expect << 'EXPECT_EOF'
+set timeout 60
+spawn /usr/pgadmin4/bin/setup-web.sh
+
+expect "Email address:"
+send "admin@arush.local\r"
+
+expect "Password:"
+send "R2705mr2\r"
+
+expect "Retype password:"
+send "R2705mr2\r"
+
+expect "Do you wish to continue*"
+send "y\r"
+
+expect eof
+EXPECT_EOF
+
+print_success "pgAdmin configurado con expect"
 
 # Configurar Nginx para pgAdmin
 cat > /etc/nginx/sites-available/pgadmin <<'EOF'
