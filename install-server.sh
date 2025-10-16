@@ -5,6 +5,7 @@
 # Stack: Nginx + PHP 8.3 + PostgreSQL 16 + Laravel 11 + Vue.js
 # Autor: DevOps Senior
 # Fecha: 2025-10-16
+# Versión: 2.0 (Corregida y Probada)
 ###############################################################################
 
 set -e  # Salir si hay algún error
@@ -14,23 +15,34 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Funciones de utilidad
+print_header() {
+    echo -e "\n${CYAN}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC} ${GREEN}$1${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
+}
+
 print_step() {
     echo -e "\n${BLUE}==>${NC} ${GREEN}$1${NC}"
 }
 
 print_error() {
-    echo -e "${RED}ERROR: $1${NC}"
+    echo -e "${RED}✗ ERROR: $1${NC}"
 }
 
 print_warning() {
-    echo -e "${YELLOW}ADVERTENCIA: $1${NC}"
+    echo -e "${YELLOW}⚠ ADVERTENCIA: $1${NC}"
 }
 
 print_success() {
     echo -e "${GREEN}✓ $1${NC}"
+}
+
+print_info() {
+    echo -e "${CYAN}ℹ $1${NC}"
 }
 
 # Verificar que se ejecuta como root o con sudo
@@ -38,6 +50,11 @@ if [[ $EUID -ne 0 ]]; then
    print_error "Este script debe ejecutarse como root o con sudo"
    exit 1
 fi
+
+print_header "Instalación Automatizada - Stack Web Completo"
+print_info "Ubuntu 24.04 LTS + Nginx + PHP 8.3 + PostgreSQL 16 + Laravel 11 + Vue.js"
+print_info "Tiempo estimado: 20-30 minutos"
+echo ""
 
 ###############################################################################
 # 1. CARGAR VARIABLES DE ENTORNO
@@ -119,6 +136,7 @@ print_success "Variables de entorno configuradas"
 print_step "2. Configuración inicial del sistema..."
 
 # Actualizar sistema
+print_info "Actualizando sistema operativo..."
 apt update && apt upgrade -y
 
 # Configurar zona horaria
@@ -130,16 +148,21 @@ hostnamectl set-hostname ${HOSTNAME}
 print_success "Hostname configurado: ${HOSTNAME}"
 
 # Actualizar /etc/hosts
-cat >> /etc/hosts <<EOF
+if ! grep -q "# Configuración local Arush" /etc/hosts; then
+    cat >> /etc/hosts <<EOF
 
 # Configuración local Arush
 ${SRV_IP} ${APP_HOST}
 ${SRV_IP} ${FRONT_HOST}
 ${SRV_IP} ${BLOG_HOST}
 EOF
-print_success "Archivo /etc/hosts actualizado"
+    print_success "Archivo /etc/hosts actualizado"
+else
+    print_warning "Entrada en /etc/hosts ya existe"
+fi
 
 # Instalar paquetes esenciales
+print_info "Instalando paquetes esenciales..."
 apt install -y curl wget git unzip software-properties-common \
     build-essential apt-transport-https ca-certificates gnupg lsb-release
 
@@ -151,6 +174,8 @@ if ! id "${DEV_USER}" &>/dev/null; then
 else
     print_warning "Usuario ${DEV_USER} ya existe"
 fi
+
+print_success "Sistema configurado correctamente"
 
 ###############################################################################
 # 3. CONFIGURACIÓN DE SSH
@@ -184,8 +209,9 @@ PrintMotd no
 PrintLastLog yes
 EOF
 
+# Reiniciar SSH (en Ubuntu es 'ssh' no 'sshd')
 systemctl restart ssh
-print_success "SSH configurado"
+print_success "SSH configurado y asegurado"
 
 ###############################################################################
 # 4. CONFIGURACIÓN DE FIREWALL UFW
@@ -203,12 +229,11 @@ ufw allow from ${LAN_CIDR} to any port 22 proto tcp comment 'SSH desde LAN'
 ufw allow from ${LAN_CIDR} to any port 80 proto tcp comment 'HTTP desde LAN'
 ufw allow from ${LAN_CIDR} to any port 443 proto tcp comment 'HTTPS desde LAN'
 ufw allow from ${LAN_CIDR} to any port 5432 proto tcp comment 'PostgreSQL desde LAN'
-# Puerto 5050 (pgAdmin) omitido - no instalado
 
 ufw logging medium
 ufw --force enable
 
-print_success "UFW configurado y habilitado"
+print_success "UFW configurado y habilitado (solo red local: ${LAN_CIDR})"
 
 ###############################################################################
 # 5. INSTALACIÓN DE NGINX
@@ -283,6 +308,7 @@ print_step "6. Instalando PHP 8.3..."
 add-apt-repository -y ppa:ondrej/php
 apt update
 
+print_info "Instalando PHP 8.3 y extensiones requeridas..."
 apt install -y php8.3 php8.3-fpm php8.3-cli php8.3-common \
     php8.3-pgsql php8.3-zip php8.3-gd php8.3-mbstring php8.3-curl \
     php8.3-xml php8.3-bcmath php8.3-intl php8.3-redis php8.3-opcache \
@@ -333,9 +359,10 @@ print_success "PHP 8.3 instalado: $(php -v | head -n 1)"
 print_step "7. Instalando PostgreSQL 16..."
 
 sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | tee /etc/apt/trusted.gpg.d/pgdg.asc
+wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | tee /etc/apt/trusted.gpg.d/pgdg.asc > /dev/null
 
 apt update
+print_info "Instalando PostgreSQL 16..."
 apt install -y postgresql-${PG_VER} postgresql-contrib-${PG_VER}
 
 # Configurar PostgreSQL
@@ -351,6 +378,7 @@ cp ${PG_CONF_DIR}/postgresql.conf ${PG_CONF_DIR}/postgresql.conf.backup.${DATE_T
 sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" ${PG_CONF_DIR}/postgresql.conf
 
 # Crear usuario y base de datos
+print_info "Creando usuario y base de datos..."
 sudo -u postgres psql <<EOF
 CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';
 CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};
@@ -362,23 +390,13 @@ systemctl enable postgresql
 systemctl restart postgresql
 
 print_success "PostgreSQL 16 instalado y configurado"
+print_info "Usuario: ${DB_USER} | Base de datos: ${DB_NAME}"
 
 ###############################################################################
-# 8. INSTALACIÓN DE PGADMIN 4 (OMITIDA)
+# 8. CREACIÓN DE CERTIFICADOS SSL (Compatible con Chrome)
 ###############################################################################
 
-print_step "8. Omitiendo instalación de pgAdmin 4..."
-print_warning "pgAdmin 4 se omitió - puede instalarse manualmente después"
-
-# Nota: Para instalar pgAdmin manualmente después, ejecuta:
-# sudo apt install -y pgadmin4-web
-# sudo /usr/pgadmin4/bin/setup-web.sh
-
-###############################################################################
-# 9. CREACIÓN DE CERTIFICADOS SSL
-###############################################################################
-
-print_step "9. Generando certificados SSL autofirmados (válidos 10 años)..."
+print_step "8. Generando certificados SSL autofirmados (válidos 10 años)..."
 
 # Crear estructura CA
 mkdir -p ${CA_DIR}/{certs,crl,newcerts,private}
@@ -450,6 +468,7 @@ extendedKeyUsage = serverAuth
 EOF
 
 # Generar CA
+print_info "Generando Autoridad Certificadora (CA)..."
 openssl genrsa -out ${CA_DIR}/private/ca.key 4096
 chmod 400 ${CA_DIR}/private/ca.key
 
@@ -461,7 +480,7 @@ openssl req -config ${CA_DIR}/openssl-ca.cnf \
 
 print_success "CA generada"
 
-# Configuración SAN compatible con Chrome
+# Configuración SAN (Compatible con Chrome)
 cat > ${CA_DIR}/openssl-san.cnf <<EOF
 [ req ]
 default_bits       = 2048
@@ -494,6 +513,7 @@ IP.2  = 127.0.0.1
 EOF
 
 # Generar certificado servidor
+print_info "Generando certificado SSL para todos los vhosts..."
 openssl genrsa -out ${KEY_FILE} 2048
 chmod 600 ${KEY_FILE}
 
@@ -511,16 +531,16 @@ openssl x509 -req \
     -days 3650 \
     -sha256 \
     -extensions v3_req \
-    -extfile ${CA_DIR}/openssl-san.cnf \
-    -copy_extensions copyall
+    -extfile ${CA_DIR}/openssl-san.cnf
 
 # Crear fullchain
 cat ${CRT_FILE} ${CA_DIR}/certs/ca.crt > ${FULLCHAIN}
 
 # Generar DH params
+print_info "Generando parámetros Diffie-Hellman (esto puede tardar 1-2 min)..."
 openssl dhparam -out ${DH_PARAM} 2048
 
-print_success "Certificado SSL generado (válido 10 años)"
+print_success "Certificado SSL generado (válido 10 años - compatible con Chrome)"
 
 # Crear snippets Nginx
 cat > ${TLS_SNIPPET} <<EOF
@@ -547,19 +567,22 @@ add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 
 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 EOF
 
+print_success "Snippets de seguridad SSL/TLS creados"
+
 ###############################################################################
-# 10. CONFIGURACIÓN DE VIRTUAL HOSTS
+# 9. CONFIGURACIÓN DE VIRTUAL HOSTS
 ###############################################################################
 
-print_step "10. Configurando Virtual Hosts..."
+print_step "9. Configurando Virtual Hosts..."
 
-# Crear solo directorio de Laravel (Vue.js se creará después)
+# Crear solo directorio de Laravel (Vue.js se creará después con sus propios comandos)
 mkdir -p ${APP_ROOT}
 chown -R ${WEB_USER}:${WEB_USER} /var/www
 chmod -R 755 /var/www
 
-# VHost app.arush.local
+# VHost app.arush.local (Laravel)
 cat > /etc/nginx/sites-available/${APP_HOST} <<EOF
+# Redirección HTTP -> HTTPS
 server {
     listen 80;
     listen [::]:80;
@@ -567,6 +590,7 @@ server {
     return 301 https://\$server_name\$request_uri;
 }
 
+# Configuración HTTPS
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
@@ -604,8 +628,9 @@ server {
 }
 EOF
 
-# VHost front.arush.local
+# VHost front.arush.local (Vue.js Frontend)
 cat > /etc/nginx/sites-available/${FRONT_HOST} <<EOF
+# Redirección HTTP -> HTTPS
 server {
     listen 80;
     listen [::]:80;
@@ -613,6 +638,7 @@ server {
     return 301 https://\$server_name\$request_uri;
 }
 
+# Configuración HTTPS
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
@@ -642,8 +668,9 @@ server {
 }
 EOF
 
-# VHost blog.arush.local
+# VHost blog.arush.local (Vue.js Blog)
 cat > /etc/nginx/sites-available/${BLOG_HOST} <<EOF
+# Redirección HTTP -> HTTPS
 server {
     listen 80;
     listen [::]:80;
@@ -651,6 +678,7 @@ server {
     return 301 https://\$server_name\$request_uri;
 }
 
+# Configuración HTTPS
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
@@ -687,45 +715,47 @@ ln -sf /etc/nginx/sites-available/${BLOG_HOST} /etc/nginx/sites-enabled/
 
 nginx -t && systemctl reload nginx
 
-print_success "Virtual Hosts configurados"
+print_success "Virtual Hosts configurados: ${APP_HOST}, ${FRONT_HOST}, ${BLOG_HOST}"
 
 ###############################################################################
-# 11. INSTALACIÓN DE COMPOSER
+# 10. INSTALACIÓN DE COMPOSER
 ###############################################################################
 
-print_step "11. Instalando Composer..."
+print_step "10. Instalando Composer..."
 
 cd /tmp
 curl -sS https://getcomposer.org/installer -o composer-setup.php
 php composer-setup.php --install-dir=/usr/local/bin --filename=composer
 rm composer-setup.php
 
-print_success "Composer instalado: $(composer --version)"
+print_success "Composer instalado: $(composer --version | head -n 1)"
 
 ###############################################################################
-# 12. INSTALACIÓN DE NODE.JS Y NPM
+# 11. INSTALACIÓN DE NODE.JS Y NPM
 ###############################################################################
 
-print_step "12. Instalando Node.js y NPM..."
+print_step "11. Instalando Node.js y NPM..."
 
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
 
+print_info "Instalando herramientas globales de Node.js..."
 npm install -g yarn pnpm @vue/cli vite
 
 print_success "Node.js instalado: $(node --version)"
 print_success "NPM instalado: $(npm --version)"
 
 ###############################################################################
-# 13. DESPLIEGUE DE LARAVEL 11
+# 12. DESPLIEGUE DE LARAVEL 11
 ###############################################################################
 
-print_step "13. Desplegando Laravel 11..."
+print_step "12. Desplegando Laravel 11..."
 
 cd /var/www
 
 # Verificar si ya existe el proyecto
-if [ ! -d "${APP_ROOT}/artisan" ]; then
+if [ ! -f "${APP_ROOT}/artisan" ]; then
+    print_info "Creando proyecto Laravel 11 (esto puede tardar 3-5 min)..."
     composer create-project laravel/laravel:^11.0 app --prefer-dist
     print_success "Laravel 11 creado"
 else
@@ -781,30 +811,35 @@ chmod 640 ${APP_ROOT}/.env
 
 # Generar APP_KEY
 cd ${APP_ROOT}
+print_info "Generando clave de aplicación Laravel..."
 sudo -u ${WEB_USER} php artisan key:generate
 
 # Ejecutar migraciones
+print_info "Ejecutando migraciones de base de datos..."
 sudo -u ${WEB_USER} php artisan migrate --force
 
 # Optimizar para producción
+print_info "Optimizando Laravel para producción..."
 sudo -u ${WEB_USER} php artisan config:cache
 sudo -u ${WEB_USER} php artisan route:cache
 sudo -u ${WEB_USER} php artisan view:cache
 sudo -u ${WEB_USER} composer install --optimize-autoloader --no-dev
 
-print_success "Laravel 11 desplegado en ${APP_HOST}"
+print_success "Laravel 11 desplegado en https://${APP_HOST}"
 
 ###############################################################################
-# 14. DESPLIEGUE DE VUE.JS
+# 13. DESPLIEGUE DE VUE.JS
 ###############################################################################
 
-print_step "14. Desplegando proyectos Vue.js..."
+print_step "13. Desplegando proyectos Vue.js..."
 
 # Frontend Vue.js
 cd /var/www
 if [ ! -f "${FRONT_ROOT}/package.json" ]; then
     # Eliminar directorio vacío si existe
     rm -rf ${FRONT_ROOT}
+    
+    print_info "Creando proyecto Vue.js Frontend (esto puede tardar 2-3 min)..."
     sudo -u ${WEB_USER} vue create front -d
     
     cat > ${FRONT_ROOT}/vue.config.js <<'EOF'
@@ -831,10 +866,14 @@ EOF
 
     chown -R ${WEB_USER}:${WEB_USER} ${FRONT_ROOT}
     cd ${FRONT_ROOT}
+    
+    print_info "Instalando dependencias de Frontend..."
     sudo -u ${WEB_USER} npm install
+    
+    print_info "Compilando Frontend para producción..."
     sudo -u ${WEB_USER} npm run build
     
-    print_success "Frontend Vue.js desplegado en ${FRONT_HOST}"
+    print_success "Frontend Vue.js desplegado en https://${FRONT_HOST}"
 else
     print_warning "Frontend Vue.js ya existe en ${FRONT_ROOT}"
 fi
@@ -844,6 +883,8 @@ cd /var/www
 if [ ! -f "${BLOG_ROOT}/package.json" ]; then
     # Eliminar directorio vacío si existe
     rm -rf ${BLOG_ROOT}
+    
+    print_info "Creando proyecto Vue.js Blog con Vite..."
     sudo -u ${WEB_USER} npm create vite@latest blog -- --template vue
     
     cat > ${BLOG_ROOT}/vite.config.js <<'EOF'
@@ -864,28 +905,32 @@ EOF
 
     chown -R ${WEB_USER}:${WEB_USER} ${BLOG_ROOT}
     cd ${BLOG_ROOT}
+    
+    print_info "Instalando dependencias de Blog..."
     sudo -u ${WEB_USER} npm install
+    
+    print_info "Compilando Blog para producción..."
     sudo -u ${WEB_USER} npm run build
     
-    print_success "Blog Vue.js desplegado en ${BLOG_HOST}"
+    print_success "Blog Vue.js desplegado en https://${BLOG_HOST}"
 else
     print_warning "Blog Vue.js ya existe en ${BLOG_ROOT}"
 fi
 
 ###############################################################################
-# 15. VERIFICACIÓN FINAL
+# 14. VERIFICACIÓN FINAL
 ###############################################################################
 
-print_step "15. Verificación final del sistema..."
+print_step "14. Verificación final del sistema..."
 
 echo ""
-echo "=== Estado de Servicios ==="
+echo -e "${CYAN}=== Estado de Servicios ===${NC}"
 systemctl status nginx --no-pager | grep -E 'Active|Loaded' || true
 systemctl status php8.3-fpm --no-pager | grep -E 'Active|Loaded' || true
 systemctl status postgresql --no-pager | grep -E 'Active|Loaded' || true
 
 echo ""
-echo "=== Versiones Instaladas ==="
+echo -e "${CYAN}=== Versiones Instaladas ===${NC}"
 nginx -v 2>&1
 php -v | head -n 1
 psql --version
@@ -894,31 +939,18 @@ node --version
 npm --version
 
 echo ""
-echo "=== Puertos en Escucha ==="
-ss -tlnp | grep -E '(80|443|5432|5050)' || true
+echo -e "${CYAN}=== Puertos en Escucha ===${NC}"
+ss -tlnp | grep -E '(80|443|5432)' || true
 
 echo ""
-echo "=== Verificación SSL ==="
+echo -e "${CYAN}=== Verificación SSL ===${NC}"
 openssl x509 -in ${CRT_FILE} -text -noout | grep -E '(Not Before|Not After)' || true
+echo ""
+print_info "Verificando SANs del certificado..."
+openssl x509 -in ${CRT_FILE} -text -noout | grep -A 8 "Subject Alternative Name" || true
 
 echo ""
 print_success "¡Instalación completada exitosamente!"
-
-echo ""
-echo -e "${GREEN}=== URLs de Acceso ===${NC}"
-echo -e "  • Laravel Backend:   ${BLUE}https://${APP_HOST}${NC}"
-echo -e "  • Vue.js Frontend:   ${BLUE}https://${FRONT_HOST}${NC}"
-echo -e "  • Blog Vue.js:       ${BLUE}https://${BLOG_HOST}${NC}"
-echo -e "  • pgAdmin 4:         ${YELLOW}No instalado (puede instalarse después)${NC}"
-echo ""
-echo -e "${YELLOW}Nota: Debes agregar las siguientes líneas a /etc/hosts en tu máquina cliente:${NC}"
-echo -e "  ${SRV_IP} ${APP_HOST}"
-echo -e "  ${SRV_IP} ${FRONT_HOST}"
-echo -e "  ${SRV_IP} ${BLOG_HOST}"
-echo ""
-echo -e "${YELLOW}Para evitar advertencias SSL, importa el certificado CA:${NC}"
-echo -e "  ${CA_DIR}/certs/ca.crt"
-echo ""
 
 ###############################################################################
 # SCRIPT DE BACKUP AUTOMATIZADO
@@ -936,10 +968,10 @@ PGPASSWORD=${DB_PASS} pg_dump -h 127.0.0.1 -U ${DB_USER} ${DB_NAME} > ${BACKUP_D
 
 # Backup archivos
 tar -czf ${BACKUP_DIR}/app_${DATE_TAG}.tar.gz ${APP_ROOT}
-tar -czf ${BACKUP_DIR}/front_${DATE_TAG}.tar.gz ${FRONT_ROOT}
-tar -czf ${BACKUP_DIR}/blog_${DATE_TAG}.tar.gz ${BLOG_ROOT}
+tar -czf ${BACKUP_DIR}/front_${DATE_TAG}.tar.gz ${FRONT_ROOT} 2>/dev/null || true
+tar -czf ${BACKUP_DIR}/blog_${DATE_TAG}.tar.gz ${BLOG_ROOT} 2>/dev/null || true
 
-# Limpiar backups antiguos
+# Limpiar backups antiguos (más de 30 días)
 find ${BACKUP_DIR} -name "*.sql" -mtime +30 -delete
 find ${BACKUP_DIR} -name "*.tar.gz" -mtime +30 -delete
 
@@ -950,6 +982,88 @@ chmod +x /usr/local/bin/backup-arush.sh
 
 print_success "Script de backup creado en /usr/local/bin/backup-arush.sh"
 
+###############################################################################
+# RESUMEN FINAL
+###############################################################################
+
 echo ""
-echo -e "${GREEN}¡Instalación del servidor completada!${NC}"
-echo -e "${BLUE}Documentación completa en: /workspace/PROCEDIMIENTO_INSTALACION_SERVIDOR.md${NC}"
+print_header "¡INSTALACIÓN COMPLETADA CON ÉXITO!"
+
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║${NC}                      ${CYAN}URLs de Acceso${NC}                                      ${GREEN}║${NC}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "  ${CYAN}•${NC} Laravel Backend:   ${BLUE}https://${APP_HOST}${NC}"
+echo -e "  ${CYAN}•${NC} Vue.js Frontend:   ${BLUE}https://${FRONT_HOST}${NC}"
+echo -e "  ${CYAN}•${NC} Blog Vue.js:       ${BLUE}https://${BLOG_HOST}${NC}"
+echo -e "  ${CYAN}•${NC} PostgreSQL:        ${BLUE}${SRV_IP}:5432${NC}"
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║${NC}                   ${CYAN}Credenciales PostgreSQL${NC}                             ${GREEN}║${NC}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "  ${CYAN}•${NC} Host:     ${BLUE}${SRV_IP}${NC} (o localhost desde el servidor)"
+echo -e "  ${CYAN}•${NC} Puerto:   ${BLUE}5432${NC}"
+echo -e "  ${CYAN}•${NC} Usuario:  ${BLUE}${DB_USER}${NC}"
+echo -e "  ${CYAN}•${NC} Password: ${BLUE}${DB_PASS}${NC}"
+echo -e "  ${CYAN}•${NC} Base:     ${BLUE}${DB_NAME}${NC}"
+echo ""
+echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${YELLOW}║${NC}              ${CYAN}Configuración del Cliente (tu máquina)${NC}                  ${YELLOW}║${NC}"
+echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "${YELLOW}PASO 1:${NC} Agregar entradas DNS en ${CYAN}/etc/hosts${NC} (Linux/Mac)"
+echo -e "        o ${CYAN}C:\\Windows\\System32\\drivers\\etc\\hosts${NC} (Windows)"
+echo ""
+echo -e "        ${BLUE}${SRV_IP}  ${APP_HOST}${NC}"
+echo -e "        ${BLUE}${SRV_IP}  ${FRONT_HOST}${NC}"
+echo -e "        ${BLUE}${SRV_IP}  ${BLOG_HOST}${NC}"
+echo ""
+echo -e "${YELLOW}PASO 2:${NC} Importar certificado CA en navegadores para evitar advertencias SSL"
+echo ""
+echo -e "        Certificado CA ubicado en: ${CYAN}${CA_DIR}/certs/ca.crt${NC}"
+echo ""
+echo -e "        ${CYAN}Para descargar:${NC}"
+echo -e "        ${BLUE}scp ${DEV_USER}@${SRV_IP}:${CA_DIR}/certs/ca.crt ~/arush-ca.crt${NC}"
+echo ""
+echo -e "        ${CYAN}Chrome/Edge:${NC} chrome://settings/security → Administrar certificados → Importar"
+echo -e "        ${CYAN}Firefox:${NC} about:preferences#privacy → Certificados → Importar"
+echo ""
+echo -e "${YELLOW}PASO 3:${NC} Limpiar caché SSL de Chrome (si es necesario)"
+echo ""
+echo -e "        ${BLUE}chrome://net-internals/#sockets${NC} → Flush socket pools"
+echo -e "        ${BLUE}chrome://net-internals/#hsts${NC} → Delete domain security policies"
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║${NC}                    ${CYAN}Comandos Útiles Post-Instalación${NC}                    ${GREEN}║${NC}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "${CYAN}Reiniciar servicios:${NC}"
+echo -e "  ${BLUE}sudo systemctl restart nginx php8.3-fpm postgresql${NC}"
+echo ""
+echo -e "${CYAN}Ver logs:${NC}"
+echo -e "  ${BLUE}sudo tail -f /var/log/nginx/error.log${NC}"
+echo -e "  ${BLUE}sudo tail -f /var/www/app/storage/logs/laravel.log${NC}"
+echo ""
+echo -e "${CYAN}Laravel:${NC}"
+echo -e "  ${BLUE}cd /var/www/app${NC}"
+echo -e "  ${BLUE}sudo -u www-data php artisan cache:clear${NC}"
+echo -e "  ${BLUE}sudo -u www-data php artisan migrate${NC}"
+echo ""
+echo -e "${CYAN}Vue.js rebuild:${NC}"
+echo -e "  ${BLUE}cd /var/www/front && sudo -u www-data npm run build${NC}"
+echo -e "  ${BLUE}cd /var/www/blog && sudo -u www-data npm run build${NC}"
+echo ""
+echo -e "${CYAN}Backup manual:${NC}"
+echo -e "  ${BLUE}sudo /usr/local/bin/backup-arush.sh${NC}"
+echo ""
+echo -e "${CYAN}Conectar a PostgreSQL:${NC}"
+echo -e "  ${BLUE}PGPASSWORD=${DB_PASS} psql -h localhost -U ${DB_USER} -d ${DB_NAME}${NC}"
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║${NC}                                                                          ${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}          ${YELLOW}¡Tu servidor web está listo para desarrollo!${NC}                 ${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}                                                                          ${GREEN}║${NC}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
