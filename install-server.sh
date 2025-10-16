@@ -203,7 +203,7 @@ ufw allow from ${LAN_CIDR} to any port 22 proto tcp comment 'SSH desde LAN'
 ufw allow from ${LAN_CIDR} to any port 80 proto tcp comment 'HTTP desde LAN'
 ufw allow from ${LAN_CIDR} to any port 443 proto tcp comment 'HTTPS desde LAN'
 ufw allow from ${LAN_CIDR} to any port 5432 proto tcp comment 'PostgreSQL desde LAN'
-ufw allow from ${LAN_CIDR} to any port 5050 proto tcp comment 'pgAdmin desde LAN'
+# Puerto 5050 (pgAdmin) omitido - no instalado
 
 ufw logging medium
 ufw --force enable
@@ -364,61 +364,15 @@ systemctl restart postgresql
 print_success "PostgreSQL 16 instalado y configurado"
 
 ###############################################################################
-# 8. INSTALACIÓN DE PGADMIN 4
+# 8. INSTALACIÓN DE PGADMIN 4 (OMITIDA)
 ###############################################################################
 
-print_step "8. Instalando pgAdmin 4..."
+print_step "8. Omitiendo instalación de pgAdmin 4..."
+print_warning "pgAdmin 4 se omitió - puede instalarse manualmente después"
 
-curl -fsS https://www.pgadmin.org/static/packages_pgadmin_org.pub | gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
-
-sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -cs) pgadmin4 main" > /etc/apt/sources.list.d/pgadmin4.list'
-
-apt update
-apt install -y pgadmin4-web
-
-# Configurar pgAdmin usando expect para automatizar
-apt install -y expect
-
-expect << 'EXPECT_EOF'
-set timeout 60
-spawn /usr/pgadmin4/bin/setup-web.sh
-
-expect "Email address:"
-send "admin@arush.local\r"
-
-expect "Password:"
-send "R2705mr2\r"
-
-expect "Retype password:"
-send "R2705mr2\r"
-
-expect "Do you wish to continue*"
-send "y\r"
-
-expect eof
-EXPECT_EOF
-
-print_success "pgAdmin configurado con expect"
-
-# Configurar Nginx para pgAdmin
-cat > /etc/nginx/sites-available/pgadmin <<'EOF'
-server {
-    listen 5050;
-    server_name _;
-
-    location / {
-        proxy_pass http://127.0.0.1:80/pgadmin4;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header Host $host;
-        proxy_redirect off;
-    }
-}
-EOF
-
-ln -sf /etc/nginx/sites-available/pgadmin /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-
-print_success "pgAdmin 4 instalado (http://${SRV_IP}:5050/pgadmin4)"
+# Nota: Para instalar pgAdmin manualmente después, ejecuta:
+# sudo apt install -y pgadmin4-web
+# sudo /usr/pgadmin4/bin/setup-web.sh
 
 ###############################################################################
 # 9. CREACIÓN DE CERTIFICADOS SSL
@@ -949,7 +903,7 @@ echo -e "${GREEN}=== URLs de Acceso ===${NC}"
 echo -e "  • Laravel Backend:   ${BLUE}https://${APP_HOST}${NC}"
 echo -e "  • Vue.js Frontend:   ${BLUE}https://${FRONT_HOST}${NC}"
 echo -e "  • Blog Vue.js:       ${BLUE}https://${BLOG_HOST}${NC}"
-echo -e "  • pgAdmin 4:         ${BLUE}http://${SRV_IP}:5050/pgadmin4${NC}"
+echo -e "  • pgAdmin 4:         ${YELLOW}No instalado (puede instalarse después)${NC}"
 echo ""
 echo -e "${YELLOW}Nota: Debes agregar las siguientes líneas a /etc/hosts en tu máquina cliente:${NC}"
 echo -e "  ${SRV_IP} ${APP_HOST}"
