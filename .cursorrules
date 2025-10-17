@@ -1,0 +1,81 @@
+# Cursor Rules para Proyecto Laravel 12 + PHP 8.2
+
+## Contexto del Proyecto
+Este es un proyecto Laravel 12 con:
+- PHP 8.2+
+- Laravel Sanctum para autenticación API
+- Tailwind CSS 4.0
+- Vite para bundling
+- PHPUnit para testing
+
+## Reglas de Código
+
+### PHP y Laravel
+- Usar PHP 8.2+ features (readonly properties, enums, null safe operator)
+- Seguir PSR-12 coding standards
+- Usar type hints estrictos en todos los métodos y propiedades
+- Preferir Laravel Eloquent sobre queries SQL directas
+- Usar Form Requests para validación compleja
+- Implementar Resource Controllers cuando sea apropiado
+- Usar Laravel Pint para formateo de código PHP
+
+### Estructura y Organización
+- Modelos en `app/Models`
+- Controladores en `app/Http/Controllers` (usar namespaces para organizar)
+- Requests en `app/Http/Requests`
+- Resources en `app/Http/Resources` para transformación de API
+- Services en `app/Services` para lógica de negocio compleja
+- Migraciones con nombres descriptivos y timestamps
+
+### Testing
+- Escribir tests para nuevas features
+- Usar Feature tests para endpoints API
+- Usar Unit tests para lógica de negocio
+- Comando para tests: `php artisan test`
+
+### Frontend
+- Usar Tailwind CSS 4.0 para estilos
+- Seguir convenciones de Blade templates
+- Usar Vite para assets (no webpack)
+
+### API Best Practices
+- Usar API Resources para formatear respuestas
+- Implementar rate limiting apropiado
+- Versionar APIs si es necesario (/api/v1/)
+- Retornar códigos HTTP apropiados
+- Usar Laravel Sanctum para autenticación
+
+### Base de Datos
+- Usar migraciones para todos los cambios de schema
+- Usar seeders y factories para datos de prueba
+- Nombrar tablas en plural (users, posts)
+- Nombrar columnas foreign key: `{table}_id` (user_id)
+
+### Seguridad
+- Validar TODOS los inputs de usuario
+- Usar Mass Assignment protection ($fillable o $guarded)
+- Sanitizar outputs en Blade con {{ }} (no {!! !!} a menos que sea necesario)
+- Usar Gates y Policies para autorización
+- Mantener .env fuera del control de versiones
+
+### Rendimiento
+- Usar eager loading para evitar N+1 queries
+- Implementar cache donde sea apropiado
+- Usar Jobs para tareas pesadas
+- Considerar indexing en migraciones para consultas frecuentes
+
+## Comandos Útiles
+- `php artisan serve` - Iniciar servidor de desarrollo
+- `php artisan test` - Ejecutar tests
+- `php artisan migrate` - Ejecutar migraciones
+- `php artisan pint` - Formatear código PHP
+- `npm run dev` - Iniciar Vite en modo desarrollo
+- `composer dev` - Iniciar todo el entorno de desarrollo
+
+## Al Generar Código
+1. Siempre incluir use statements necesarios
+2. Agregar comentarios PHPDoc para métodos complejos
+3. Usar nombres descriptivos para variables y métodos
+4. Seguir convenciones de Laravel (camelCase para métodos, PascalCase para clases)
+5. Implementar manejo de errores apropiado
+6. Validar datos antes de procesar
