@@ -1,0 +1,61 @@
+# Cursor Ignore File
+# Archivos y directorios que Cursor debe ignorar para optimizar rendimiento
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Build artifacts
+/public/build/
+/public/hot
+/public/storage
+
+# Framework cache
+/bootstrap/cache/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+
+# Logs
+/storage/logs/*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled files
+*.log
+*.lock
+composer.lock
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Git
+.git/
+
+# Test coverage
+/coverage/
+/.phpunit.cache/
+
+# Documentation que no necesita contexto
+/Doc/
+/docs/
+
+# Archivos temporales
+*.tmp
+*.temp
+*.cache
